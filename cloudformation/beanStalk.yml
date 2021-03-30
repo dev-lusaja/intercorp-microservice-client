@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  ApplicationName:
+    Type: String
+  BucketS3:
+    Type: String
+  BucketKey:
+    Type: String
+
+Resources:
+  SpringApplication:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: !Ref ApplicationName
+      Description: AWS Elastic Beanstalk Spring Application
+  SpringApplicationVersion:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName:
+        Ref: SpringApplication
+      Description: AWS ElasticBeanstalk Spring Application Version
+      SourceBundle:
+        S3Bucket: !Ref BucketS3
+        S3Key: !Ref BucketKey
+  SpringConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName:
+        Ref: SpringApplication
+      Description: AWS ElasticBeanstalk Spring Configuration Template
+      SolutionStackName: "64bit Amazon Linux 2 v4.1.6 running Tomcat 8.5 Corretto 11"
+      OptionSettings:
+        - Namespace: aws:autoscaling:asg
+          OptionName: MinSize
+          Value: '1'
+        - Namespace: aws:autoscaling:asg
+          OptionName: MaxSize
+          Value: '1'
+        - Namespace: aws:autoscaling:launchconfiguration
+          OptionName: IamInstanceProfile
+          Value: !Ref InstanceProfile
+  SpringEnvironment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      EnvironmentName:
+        Ref: SpringApplication
+      ApplicationName:
+        Ref: SpringApplication
+      Description: AWS ElasticBeanstalk Spring Environment
+      TemplateName:
+        Ref: SpringConfigurationTemplate
+      VersionLabel:
+        Ref: SpringApplicationVersion
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: Beanstalk EC2 role
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
